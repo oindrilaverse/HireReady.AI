@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function getApiUrl(endpoint: string): string {
+const getApiBase = (): string => {
   const defaultBase = "https://hireready-ai-v2.onrender.com/api";
   let base = process.env.NEXT_PUBLIC_API_URL || defaultBase;
   
@@ -27,7 +27,13 @@ export function getApiUrl(endpoint: string): string {
     base = `${base}/api`;
   }
   
+  return base;
+};
+
+export const API_URL = getApiBase();
+
+export function getApiUrl(endpoint: string): string {
   // Ensure endpoint starts with a slash
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${base}${cleanEndpoint}`;
+  return `${API_URL}${cleanEndpoint}`;
 }
