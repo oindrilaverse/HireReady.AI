@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 const pdfParseModule = require('pdf-parse');
-const pdf = typeof pdfParseModule === 'function' ? pdfParseModule : (pdfParseModule.default || pdfParseModule);
+const PDFParse = pdfParseModule.PDFParse;
 
 
 const router = Router();
@@ -64,8 +64,9 @@ router.post('/upload', (req, res, next) => {
     } else if (isPdf) {
       // PDF parsing
       try {
-        const data = await pdf(file.buffer);
-        text = data.text || '';
+        const parser = new PDFParse(new Uint8Array(file.buffer));
+        const parseResult = await parser.getText();
+        text = parseResult.text || '';
         console.log(`[ANALYZER] PDF parsed successfully. Length: ${text.length}`);
       } catch (pdfError) {
         const errorMsg = `[ANALYZER] PDF Parse Error: ${pdfError instanceof Error ? pdfError.message : String(pdfError)}. Attempting AI fallback.\n`;
