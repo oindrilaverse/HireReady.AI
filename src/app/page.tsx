@@ -96,7 +96,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#09090b] text-[#f4f4f5] overflow-x-hidden font-sans relative">
       {/* Cinematic Background Video Container (Hardware-Accelerated) */}
       <div 
-        className="fixed inset-0 w-full h-full -z-10 overflow-hidden pointer-events-none select-none"
+        className="fixed inset-0 w-full h-full z-0 overflow-hidden pointer-events-none select-none"
         style={{ transform: "translate3d(0, 0, 0)" }}
       >
         <video
