@@ -13,7 +13,6 @@ import {
   Star,
   ChevronRight,
 } from "lucide-react";
-import { BackgroundNet } from "@/components/layout/BackgroundNet";
 
 // ── Animation helpers ─────────────────────────────────────────────────────────
 const fadeUp = (delay = 0) => ({
@@ -95,7 +94,28 @@ const testimonials = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#09090b] text-[#f4f4f5] overflow-x-hidden font-sans relative">
-      <BackgroundNet />
+      {/* Cinematic Background Video Container (Hardware-Accelerated) */}
+      <div 
+        className="fixed inset-0 w-full h-full -z-10 overflow-hidden pointer-events-none select-none"
+        style={{ transform: "translate3d(0, 0, 0)" }}
+      >
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster="/cinematic-poster.jpg"
+          className="absolute top-0 left-0 w-full h-full object-cover will-change-transform"
+          style={{ transform: "translate3d(0, 0, 0)" }}
+        >
+          <source src="/cinematic-bg.mp4" type="video/mp4" />
+        </video>
+        {/* Dark subtle overlay for perfect typography contrast and smooth blending */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/45 to-[#09090b] pointer-events-none" 
+          aria-hidden="true"
+        />
+      </div>
 
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <nav className="container mx-auto px-6 py-5 flex items-center justify-between relative z-20">
@@ -146,10 +166,10 @@ export default function LandingPage() {
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-[1.08]">
             <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-zinc-400">
-              Beat the ATS.<br className="hidden md:block" />
+              MAKE IT POSSIBLE WITH<br className="hidden md:block" />
             </span>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#007bff] to-[#8b5cf6]">
-              Land the Interview.
+              HireReady.AI
             </span>
           </h1>
 
