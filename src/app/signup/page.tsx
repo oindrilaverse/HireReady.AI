@@ -144,11 +144,14 @@ export default function SignupPage() {
         <div className="glass rounded-3xl p-8 border border-white/5">
           <form onSubmit={handleSignup} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Full Name</label>
+              <label htmlFor="fullName" className="block text-sm font-medium text-zinc-300 mb-2">Full Name</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
                 <input
+                  id="fullName"
+                  name="name"
                   type="text"
+                  autoComplete="name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
@@ -159,11 +162,14 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Email Address</label>
+              <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-2">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
                 <input
+                  id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -174,11 +180,14 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-zinc-300 mb-2">Password</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
                 <input
+                  id="password"
+                  name="password"
                   type="password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
