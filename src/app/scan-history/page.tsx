@@ -6,7 +6,12 @@ import { BarChart2, Clock, FileText, TrendingUp, RefreshCw, LogIn } from "lucide
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { ScanHistoryCard } from "@/components/ScanHistoryCard";
-import { ScoreChart } from "@/components/ScoreChart";
+import dynamic from "next/dynamic";
+
+const ScoreChart = dynamic(
+  () => import("@/components/ScoreChart").then((mod) => mod.ScoreChart),
+  { ssr: false }
+);
 
 interface ScanRow {
   id: string;
