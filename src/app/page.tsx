@@ -108,7 +108,7 @@ export default function LandingPage() {
           className="absolute top-0 left-0 w-full h-full object-cover will-change-transform"
           style={{ transform: "translate3d(0, 0, 0)" }}
         >
-          <source src="/cinematic-bg.mp4" type="video/mp4" />
+          <source src="/car-transforms.mp4" type="video/mp4" />
         </video>
         {/* Dark subtle overlay for perfect typography contrast and smooth blending */}
         <div 
