@@ -12,6 +12,7 @@ export function BackgroundNet() {
     if (!ctx) return;
 
     let animationFrameId: number;
+    let isAnimating = true;
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
 
@@ -34,9 +35,22 @@ export function BackgroundNet() {
       mouse.active = false;
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isAnimating = false;
+        cancelAnimationFrame(animationFrameId);
+      } else {
+        if (!isAnimating) {
+          isAnimating = true;
+          draw();
+        }
+      }
+    };
+
     window.addEventListener("resize", handleResize);
     window.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseleave", handleMouseLeave);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Initialize nodes
     const density = 22000; // pixels per node
@@ -140,7 +154,9 @@ export function BackgroundNet() {
         if (n1.y < 0 || n1.y > height) n1.vy *= -1;
       }
 
-      animationFrameId = requestAnimationFrame(draw);
+      if (isAnimating) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     };
 
     draw();
@@ -149,6 +165,7 @@ export function BackgroundNet() {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseleave", handleMouseLeave);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -92,6 +93,46 @@ const testimonials = [
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Pause video when off-screen or tab is hidden to save GPU/CPU resources
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !document.hidden) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.05 }
+    );
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        video.pause();
+      } else {
+        // Only resume if it's visible in viewport
+        const rect = video.getBoundingClientRect();
+        const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+        if (isVisible) {
+          video.play().catch(() => {});
+        }
+      }
+    };
+
+    observer.observe(video);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#09090b] text-[#f4f4f5] overflow-x-hidden font-sans relative">
       {/* Cinematic Background Video Container (Hardware-Accelerated) */}
@@ -100,6 +141,7 @@ export default function LandingPage() {
         style={{ transform: "translate3d(0, 0, 0)" }}
       >
         <video
+          ref={videoRef}
           autoPlay
           loop
           muted
