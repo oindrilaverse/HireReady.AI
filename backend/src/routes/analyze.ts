@@ -3,6 +3,7 @@ import multer from 'multer';
 import crypto from 'crypto';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from '../lib/supabase.js';
+import { checkScanLimit } from '../middleware/checkScanLimit.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -21,7 +22,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-router.post('/upload', (req, res, next) => {
+router.post('/upload', checkScanLimit, (req, res, next) => {
   const msg = `[ANALYZER] Incoming POST to /api/analyze/upload | Content-Type: ${req.headers['content-type']}\n`;
   console.log(msg.trim());
   fs.appendFileSync(path.join(__dirname, '../../debug.log'), `${new Date().toISOString()} | INFO | ${msg}`);
@@ -309,6 +310,29 @@ Return the response EXCLUSIVELY as a JSON object with this exact structure (no m
       .single();
 
     if (createReportError) throw createReportError;
+
+    // ── Fire-and-forget tracking ──────────────────────────────────────────────
+    // Both Supabase calls are intentionally non-blocking. If they fail, the user
+    // already received a 200 — we log the error but never re-throw it.
+    void (async () => {
+      try {
+        // 1. Atomically increment scan_count by 1 using a raw Postgres expression
+        await supabase.rpc('increment_user_scan_count', { target_user_id: resume.userId });
+
+        // 2. Insert a row into scan_history
+        await supabase
+          .from('scan_history')
+          .insert([{
+            user_id:        resume.userId,
+            ats_score:      parsedResult.score ?? 0,
+            job_title:      null,                                       // no job title at analysis time — can be set during job-match
+            skills_matched: JSON.stringify(parsedResult.strengths ?? []), // closest proxy available at this stage
+          }]);
+      } catch (trackingErr) {
+        console.error('[ANALYZER] Non-critical tracking error (scan_count / scan_history):', trackingErr);
+      }
+    })();
+    // ── End tracking ──────────────────────────────────────────────────────────
 
     res.json({
       success: true,

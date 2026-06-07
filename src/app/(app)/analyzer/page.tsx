@@ -28,6 +28,7 @@ export default function AnalyzerPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scanLimitHit, setScanLimitHit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadingStep, setLoadingStep] = useState(0);
 
@@ -211,6 +212,20 @@ export default function AnalyzerPage() {
       sessionStorage.setItem(fileKey, JSON.stringify(analysisResult));
       setResult(analysisResult);
     } catch (err: unknown) {
+      // ── 403 Scan-limit guard ───────────────────────────────────────────────
+      // Fires ONLY when the backend returns SCAN_LIMIT_REACHED.
+      // The happy-path (200) is never affected.
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (
+        errMsg.toLowerCase().includes('scan limit') ||
+        errMsg.toLowerCase().includes('scan_limit_reached')
+      ) {
+        setScanLimitHit(true);
+        setIsAnalyzing(false);
+        return;   // stop here — do NOT fall through to the mock
+      }
+      // ── End 403 guard ──────────────────────────────────────────────────────
+
       const fallbackMock: AnalysisResult = {
         score: 85,
         summary: "Excellent structure and clean formatting. Strong matching for modern web technologies. Good use of action verbs with clear accomplishments.",
@@ -678,6 +693,73 @@ export default function AnalyzerPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Scan Limit Modal ──────────────────────────────────────────────────
+           Renders ONLY when the backend returns a 403 SCAN_LIMIT_REACHED.
+           The happy-path (200 result view) is completely unaffected.
+      ──────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {scanLimitHit && (
+          <motion.div
+            key="scan-limit-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backdropFilter: "blur(8px)", backgroundColor: "rgba(0,0,0,0.6)" }}
+            onClick={() => setScanLimitHit(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 16 }}
+              animate={{ scale: 1,    opacity: 1, y: 0  }}
+              exit={{    scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ type: "spring", damping: 22, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm bg-[#0f0f14] border border-amber-400/30 rounded-3xl p-8 text-center shadow-[0_0_60px_rgba(251,191,36,0.12)]"
+            >
+              {/* Close */}
+              <button
+                onClick={() => setScanLimitHit(false)}
+                className="absolute top-4 right-4 text-gray-600 hover:text-gray-300 transition-colors text-xl leading-none"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+
+              {/* Icon */}
+              <div className="w-14 h-14 rounded-2xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center mx-auto mb-5">
+                <AlertCircle className="w-7 h-7 text-amber-400" />
+              </div>
+
+              {/* Copy */}
+              <h2 className="text-xl font-bold text-white mb-2">
+                Free scan limit reached
+              </h2>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                You&apos;ve used all <span className="text-white font-semibold">3 free scans</span>.
+                Upgrade to Pro for unlimited AI-powered resume analysis.
+              </p>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-3">
+                <a
+                  href="/pricing"
+                  className="block w-full bg-primary hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(0,123,255,0.35)] hover:shadow-[0_0_30px_rgba(0,123,255,0.55)]"
+                >
+                  Upgrade to Pro →
+                </a>
+                <button
+                  onClick={() => setScanLimitHit(false)}
+                  className="block w-full text-gray-500 hover:text-gray-300 text-sm py-2 transition-colors"
+                >
+                  Maybe later
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
