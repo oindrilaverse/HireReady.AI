@@ -169,6 +169,18 @@ class MockQueryBuilder {
         });
       }
 
+      if (this.table === 'resumes') {
+        filtered = filtered.map(resume => {
+          const analyses = (db.analyses || []).filter((a: any) => a.resumeId === resume.id || a.resume_id === resume.id);
+          const jobMatches = (db.job_matches || []).filter((m: any) => m.resumeId === resume.id || m.resume_id === resume.id);
+          return {
+            ...resume,
+            analyses,
+            jobMatches,
+          };
+        });
+      }
+
       if (isSingle) {
         if (filtered.length === 0) {
           return { data: null, error: { code: 'PGRST116', message: 'No rows returned' } };
