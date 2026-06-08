@@ -9,8 +9,7 @@ export async function updateSession(request: NextRequest) {
   });
 
   let user = null;
-  const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/(.*?)\.supabase/)?.[1] || 'gegorjsojhnneercfbpi';
-  const cookieName = `sb-${projectRef}-auth-token`;
+  const cookieName = 'sb-hireready-auth-token';
 
   try {
     const authCookie = request.cookies.get(cookieName)?.value;

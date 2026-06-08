@@ -3,13 +3,15 @@
 import { useEffect, useState, useRef } from "react";
 import { useCareerStore } from "@/store/careerStore";
 import { createClient } from "@/utils/supabase/client";
-import { useRouter } from "next/navigation";
 import { getApiUrl } from "@/lib/utils";
 
+// Shared across all instances to prevent duplicate concurrent API requests
+let globalSyncInProgress = false;
+
 export function useAuthSync() {
-  const { isSynced, setSynced, setDashboardData } = useCareerStore();
+  const { isSynced, syncedUserId, setSynced, clearStore } = useCareerStore();
   const [user, setUser] = useState<any>(null);
-  const syncInProgress = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   const supabaseRef = useRef<any>(null);
 
   if (!supabaseRef.current) {
@@ -17,61 +19,77 @@ export function useAuthSync() {
   }
   const supabase = supabaseRef.current;
 
+  // Ensure Zustand store is fully hydrated from localStorage before checking sync status
+  useEffect(() => {
+    setHydrated(useCareerStore.persist.hasHydrated());
+    const unsub = useCareerStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
+
     async function checkUser() {
       const { data: { session } } = await supabase.auth.getSession();
+      const sessionUser = session?.user || null;
       
-      if (session?.user) {
-        setUser(session.user);
+      if (sessionUser) {
+        setUser(sessionUser);
         
-        if (!isSynced && !syncInProgress.current) {
-          syncInProgress.current = true;
+        // Sync if not synced yet, or if logged in as a different user
+        const needsSync = !isSynced || syncedUserId !== sessionUser.id;
+        
+        if (needsSync && !globalSyncInProgress) {
+          globalSyncInProgress = true;
           try {
-            // Sync user with backend
             const syncRes = await fetch(getApiUrl("/users/sync"), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                authId: session.user.id,
-                email: session.user.email,
-                name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+                authId: sessionUser.id,
+                email: sessionUser.email,
+                name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0],
               }),
             });
 
             if (syncRes.ok) {
-              const res = await fetch(getApiUrl(`/users/${session.user.id}/dashboard`));
-              if (res.ok) {
-                const data = await res.json();
-                setDashboardData(data.data || data);
-                setSynced(true);
-              }
+              setSynced(true, sessionUser.id);
             }
           } catch (err) {
             console.error("Auth Sync Failed:", err);
           } finally {
-            syncInProgress.current = false;
+            globalSyncInProgress = false;
           }
         }
       } else {
         setUser(null);
-        if (isSynced) setSynced(false);
+        if (isSynced) {
+          clearStore();
+        }
       }
     }
 
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      if (session?.user) {
-        setUser(session.user);
+      const sessionUser = session?.user || null;
+      if (sessionUser) {
+        setUser(sessionUser);
+        checkUser();
       } else {
         setUser(null);
-        setSynced(false);
+        if (isSynced) {
+          clearStore();
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []); // Run once on mount — isSynced state is read via ref internally
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [hydrated, isSynced, syncedUserId]);
 
-  return { user, isSynced };
+  return { user, isSynced: hydrated && isSynced };
 }

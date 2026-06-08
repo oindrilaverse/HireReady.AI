@@ -10,14 +10,20 @@ import { motion } from "framer-motion";
 import { API_URL } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { user } = useAuthSync();
+  const { user, isSynced } = useAuthSync();
   const { dashboardData, setDashboardData } = useCareerStore();
-  const [loading, setLoading] = useState(!dashboardData);
+  
+  // Ensure the cached dashboard data belongs to the currently logged in user to avoid stale flash
+  const isCorrectUser = dashboardData && user && (dashboardData.auth_id === user.id || dashboardData.id === user.id);
+  const displayData = isCorrectUser ? dashboardData : null;
+  
+  // Only show loading state if we don't have valid cached data
+  const [loading, setLoading] = useState(!displayData);
 
   useEffect(() => {
     async function fetchDashboard() {
-      if (!user) {
-        setLoading(false);
+      // Don't fetch until user is loaded and synced with backend to prevent 404 race conditions
+      if (!user || !isSynced) {
         return;
       }
       
@@ -38,10 +44,21 @@ export default function DashboardPage() {
       }
     }
 
-    fetchDashboard();
-  }, [user?.id]); // user?.id is a stable primitive — prevents re-fetch on every auth heartbeat
+    if (user && isSynced) {
+      fetchDashboard();
+    }
+  }, [user?.id, isSynced, setDashboardData]);
 
-  if (loading && !dashboardData) {
+  // Adjust loading state if sync/user details change
+  useEffect(() => {
+    if (displayData) {
+      setLoading(false);
+    } else if (user && isSynced) {
+      setLoading(true);
+    }
+  }, [displayData, user, isSynced]);
+
+  if (loading && !displayData) {
     return (
       <div className="space-y-8">
         <header className="mb-8 space-y-3">
@@ -61,7 +78,7 @@ export default function DashboardPage() {
     );
   }
 
-  const resumes = dashboardData?.resumes || [];
+  const resumes = displayData?.resumes || [];
 
   const totalAnalyzed = resumes.length;
   const latestResume = resumes[0];

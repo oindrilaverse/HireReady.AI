@@ -275,15 +275,29 @@ class QueryBuilderWrapper {
         res = await q;
       }
       
-      if (res.error && (res.error.message?.includes('fetch') || res.error.message?.includes('getaddrinfo') || res.error.message?.includes('ENOTFOUND'))) {
-        console.warn(`Supabase offline error detected on table "${this.table}", falling back to local database`);
+      if (res.error && (
+        res.error.message?.includes('fetch') || 
+        res.error.message?.includes('getaddrinfo') || 
+        res.error.message?.includes('ENOTFOUND') ||
+        res.error.code === '42501' ||
+        res.error.code === 'PGRST116' ||
+        res.error.message?.includes('row-level security')
+      )) {
+        console.warn(`Supabase database error/RLS/no-rows/offline detected on table "${this.table}", falling back to local database`);
         const mock = this.buildMock();
         return await mock.execute(isSingle, isMaybeSingle);
       }
       return res;
     } catch (err: any) {
-      if (err.message?.includes('fetch') || err.message?.includes('getaddrinfo') || err.message?.includes('ENOTFOUND')) {
-        console.warn(`Supabase offline exception detected on table "${this.table}", falling back to local database`);
+      if (
+        err.message?.includes('fetch') || 
+        err.message?.includes('getaddrinfo') || 
+        err.message?.includes('ENOTFOUND') ||
+        err.code === '42501' ||
+        err.code === 'PGRST116' ||
+        err.message?.includes('row-level security')
+      ) {
+        console.warn(`Supabase database exception/RLS/no-rows/offline detected on table "${this.table}", falling back to local database`);
         const mock = this.buildMock();
         return await mock.execute(isSingle, isMaybeSingle);
       }

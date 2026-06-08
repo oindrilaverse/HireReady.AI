@@ -2,7 +2,7 @@
 
 import { Bell, Search, LogOut } from "lucide-react";
 import { useAuthSync } from "@/hooks/useAuthSync";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 
 export function TopNavbar() {
@@ -10,6 +10,7 @@ export function TopNavbar() {
   const router = useRouter();
 
   const handleLogout = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
     // Do NOT call router.refresh() here — it fires middleware which redirects to /login
     // simultaneously with router.push('/login'), creating a navigation loop.

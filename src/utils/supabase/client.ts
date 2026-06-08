@@ -9,14 +9,13 @@ export function createClient() {
     supabaseKey,
     {
       auth: {
-        persistSession: false,
-        detectSessionInUrl: false,
+        persistSession: true,
+        detectSessionInUrl: true,
       }
     }
   );
 
-  const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/(.*?)\.supabase/)?.[1] || 'gegorjsojhnneercfbpi';
-  const cookieName = `sb-${projectRef}-auth-token`;
+  const cookieName = 'sb-hireready-auth-token';
 
   const originalAuth = client.auth;
 
@@ -177,6 +176,15 @@ export function createClient() {
             if (res.error) {
               throw res.error;
             }
+            if (res.data?.session) {
+              // Sync online session to fallback cache
+              const user = res.data.session.user;
+              const accessToken = res.data.session.access_token;
+              const refreshToken = res.data.session.refresh_token;
+              const sessionData = [accessToken, refreshToken || '', null, null, null];
+              document.cookie = `${cookieName}=${encodeURIComponent(JSON.stringify(sessionData))}; path=/; max-age=604800; SameSite=Lax`;
+              localStorage.setItem(cookieName, JSON.stringify(res.data.session));
+            }
             return res;
           } catch (err: any) {
             return { data: { session: null }, error: null };
@@ -190,22 +198,46 @@ export function createClient() {
             const sessionUser = session.user || session;
             return { data: { user: sessionUser }, error: null };
           }
-          return { data: { user: null }, error: null };
+          try {
+            const { data } = await target.getUser();
+            return { data, error: null };
+          } catch (e) {
+            return { data: { user: null }, error: null };
+          }
         };
       }
       if (prop === 'onAuthStateChange') {
         return function onAuthStateChange(callback: (event: string, session: any) => void) {
-          const session = getSessionOffline();
-          
-          setTimeout(() => {
-            callback('INITIAL_SESSION', session);
-          }, 0);
+          const cachedSession = getSessionOffline();
+          if (cachedSession) {
+            setTimeout(() => {
+              callback('INITIAL_SESSION', cachedSession);
+            }, 0);
+          }
+
+          const { data: { subscription } } = target.onAuthStateChange((event: any, session: any) => {
+            if (session) {
+              // Sync real session to cache & cookie
+              const sessionData = [session.access_token, session.refresh_token || '', null, null, null];
+              document.cookie = `${cookieName}=${encodeURIComponent(JSON.stringify(sessionData))}; path=/; max-age=604800; SameSite=Lax`;
+              localStorage.setItem(cookieName, JSON.stringify(session));
+              callback(event, session);
+            } else {
+              // If real client returns null, check if we have a valid cached session to preserve
+              const currentCache = getSessionOffline();
+              if (currentCache) {
+                // Keep the cached session and ignore the null propagation
+              } else {
+                callback(event, null);
+              }
+            }
+          });
 
           return {
             data: {
               subscription: {
                 unsubscribe() {
-                  // No-op
+                  subscription.unsubscribe();
                 }
               }
             }
