@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Target, Search, CheckCircle2, XCircle, ChevronRight, Activity, Zap } from "lucide-react";
+import { Target, Search, CheckCircle2, XCircle, ChevronRight, Activity, Zap, X, TrendingUp, BookOpen } from "lucide-react";
 
 import { useAuthSync } from "@/hooks/useAuthSync";
 import { useCareerStore } from "@/store/careerStore";
@@ -17,6 +17,7 @@ export default function JobMatchPage() {
   const [result, setResult] = useState<any>(null);
   const [suggestedJobs, setSuggestedJobs] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<any | null>(null);
   const fetchedForResumeId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -128,7 +129,12 @@ export default function JobMatchPage() {
             <motion.div 
               key={i}
               whileHover={{ y: -4 }}
-              className="glass p-6 rounded-2xl relative overflow-hidden group flex flex-col h-full border border-white/5"
+              className="glass p-6 rounded-2xl relative overflow-hidden group flex flex-col h-full border border-white/5 cursor-pointer"
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest('a') || target.closest('button')) return;
+                setSelectedJob(job);
+              }}
             >
               <div className="absolute top-0 right-0 p-3">
                 <span className={`text-[10px] font-bold text-white px-2.5 py-1 rounded-full shadow-lg ${job.matchScore >= 80 ? 'bg-[#10b981]' : job.matchScore >= 60 ? 'bg-[#f59e0b]' : 'bg-[#ef4444]'}`}>MATCH {job.matchScore}%</span>
@@ -136,7 +142,7 @@ export default function JobMatchPage() {
               <h4 className="font-bold text-white mb-1 pr-20 leading-tight font-display">{job.title}</h4>
               <p className="text-xs text-zinc-400 mb-4">{job.company}</p>
               
-              <div className="mb-6 flex-1">
+              <div className="mb-4 flex-1">
                 <p className="text-[10px] text-zinc-500 font-bold mb-2 uppercase tracking-wider">Missing Skills</p>
                 <div className="flex flex-wrap gap-1.5">
                   {job.missingSkills?.map((skill: string, j: number) => (
@@ -146,6 +152,10 @@ export default function JobMatchPage() {
                     <span className="text-[10px] bg-[#10b981]/10 border border-[#10b981]/20 text-[#10b981] px-2 py-0.5 rounded-full">None</span>
                   )}
                 </div>
+              </div>
+
+              <div className="text-[11px] text-primary group-hover:underline flex items-center gap-1 mb-6 font-semibold">
+                Explain Match <ChevronRight className="w-3 h-3" />
               </div>
 
               <div className="flex items-center gap-2 mt-auto">
@@ -172,6 +182,103 @@ export default function JobMatchPage() {
           ))
         )}
       </div>
+
+      {/* Suggested Job Recruiter Analysis Modal */}
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
+          <motion.div 
+            initial={{ scale: 0.95, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className="glass max-w-2xl w-full max-h-[85vh] overflow-y-auto rounded-3xl p-8 border border-white/10 relative shadow-[0_0_50px_rgba(255,0,127,0.2)]"
+          >
+            <button 
+              onClick={() => setSelectedJob(null)}
+              className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-6">
+              <div>
+                <span className={`text-xs font-bold text-white px-3 py-1 rounded-full shadow-lg ${selectedJob.matchScore >= 80 ? 'bg-[#10b981]' : selectedJob.matchScore >= 60 ? 'bg-[#f59e0b]' : 'bg-[#ef4444]'}`}>
+                  {selectedJob.matchScore}% Match
+                </span>
+                <h3 className="text-2xl font-extrabold text-white mt-3 leading-tight font-display">{selectedJob.title}</h3>
+                <p className="text-sm text-zinc-400 mt-1">{selectedJob.company}</p>
+              </div>
+
+              <div className="border-t border-white/5 pt-6 space-y-4">
+                <div>
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-primary" /> Why Recommended
+                  </h4>
+                  <p className="text-zinc-300 text-sm leading-relaxed bg-[#0c0c0c]/40 p-4 rounded-xl border border-white/5">
+                    {selectedJob.whyRecommended || "Calculated based on your resume achievements and technical stack alignment."}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-[#0c0c0c]/40 p-4 rounded-xl border border-white/5">
+                    <h4 className="text-xs font-bold text-[#10b981] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" /> Matched Skills ({selectedJob.matchedSkills?.length || 0})
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedJob.matchedSkills?.map((skill: string, j: number) => (
+                        <span key={j} className="text-xs bg-[#10b981]/10 border border-[#10b981]/20 text-[#10b981] px-2.5 py-1 rounded-full">
+                          {skill}
+                        </span>
+                      )) || <span className="text-xs text-zinc-500">None detected</span>}
+                    </div>
+                  </div>
+
+                  <div className="bg-[#0c0c0c]/40 p-4 rounded-xl border border-white/5">
+                    <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <XCircle className="w-4 h-4" /> Missing Skills ({selectedJob.missingSkills?.length || 0})
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedJob.missingSkills?.map((skill: string, j: number) => (
+                        <span key={j} className="text-xs bg-red-500/10 border border-red-500/20 text-red-400 px-2.5 py-1 rounded-full">
+                          {skill}
+                        </span>
+                      )) || <span className="text-xs text-zinc-500">None</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" /> Suggested Learning Path
+                  </h4>
+                  <div className="bg-[#0c0c0c]/40 p-4 rounded-xl border border-white/5 text-zinc-300 text-sm leading-relaxed whitespace-pre-line">
+                    {selectedJob.suggestedLearningPath || "No gaps detected! You are fully qualified."}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <a 
+                  href={selectedJob.applyLink || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-primary hover:bg-[#ff007f]/95 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-[0_0_20px_rgba(255,0,127,0.4)] flex items-center justify-center flex-1 text-center btn-hover"
+                >
+                  Apply to this Role
+                </a>
+                <button 
+                  onClick={() => {
+                    setJobDescription(`Job Role: ${selectedJob.title}\nCompany: ${selectedJob.company}\nRequired Skills: ${selectedJob.missingSkills?.join(', ')}`);
+                    setSelectedJob(null);
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                  }}
+                  className="text-xs font-bold text-zinc-400 hover:text-primary flex items-center justify-center p-3 border border-white/10 hover:border-primary/50 hover:bg-primary/10 rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <Search className="w-4 h-4" /> Compare JD
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {!result && !loading && (
         <motion.div 

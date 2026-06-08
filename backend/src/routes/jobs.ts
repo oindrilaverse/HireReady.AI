@@ -6,79 +6,365 @@ const router = Router();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const textModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-
-// Cosine Similarity Function
-function cosineSimilarity(vecA: number[], vecB: number[]) {
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < vecA.length; i++) {
-    const valA = vecA[i] || 0;
-    const valB = vecB[i] || 0;
-    dotProduct += valA * valB;
-    normA += valA * valA;
-    normB += valB * valB;
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-// Predefined Job Database
-const MOCK_JOBS = [
-  {
-    id: "1",
-    title: "Frontend Engineer",
-    company: "Vercel",
-    description: "We are looking for a Frontend Engineer experienced in React, Next.js, and TypeScript. You should be comfortable building complex UI components, optimizing Web Vitals, and writing tests using Jest/Cypress.",
-    applyLink: "https://vercel.com/careers"
-  },
-  {
-    id: "2",
-    title: "Backend Node.js Developer",
-    company: "Stripe",
-    description: "Seeking a Backend Engineer with strong Node.js and PostgreSQL skills. Experience with building robust REST APIs, understanding of microservices architecture, and familiarity with Redis and Docker is required.",
-    applyLink: "https://stripe.com/jobs"
-  },
-  {
-    id: "3",
-    title: "Full Stack Software Engineer",
-    company: "Netflix",
-    description: "Join us as a Full Stack Engineer. We need experts in Java/Spring Boot for the backend and React for the frontend. Cloud experience (AWS) and knowledge of scalable distributed systems is a big plus.",
-    applyLink: "https://jobs.netflix.com/"
-  },
-  {
-    id: "4",
-    title: "Data Scientist",
-    company: "Spotify",
-    description: "Looking for a Data Scientist proficient in Python, SQL, and machine learning libraries (scikit-learn, TensorFlow). Experience with A/B testing and data visualization tools (Tableau, Looker) is required.",
-    applyLink: "https://lifeatspotify.com/jobs"
-  },
-  {
-    id: "5",
-    title: "DevOps Engineer",
-    company: "GitHub",
-    description: "We need a DevOps Engineer to manage our infrastructure. Must have strong skills in Kubernetes, Terraform, CI/CD pipelines (GitHub Actions), and bash scripting.",
-    applyLink: "https://github.com/about/careers"
-  }
-];
-
-let cachedJobEmbeddings: { id: string, embedding: number[] }[] | null = null;
-
-const FALLBACK_JOBS = [
-  { title: "Frontend Developer", company: "TechCorp", matchScore: 85, missingSkills: ["GraphQL", "Jest"], applyLink: "#" },
-  { title: "Software Engineer", company: "Innova", matchScore: 78, missingSkills: ["Docker", "Kubernetes"], applyLink: "#" }
-];
 
 const suggestionsCache = new Map<string, any[]>();
 
-// Match a specific JD
+// Fallback suggestions generator based on resume keywords
+function getFallbackSuggestions(resumeText: string): any[] {
+  const text = (resumeText || "").toLowerCase();
+  
+  // 1. AI / ML / NLP
+  if (text.includes('python') && (
+    text.includes('pytorch') || 
+    text.includes('tensorflow') || 
+    text.includes('deep learning') || 
+    text.includes('hugging face') || 
+    text.includes('llm') || 
+    text.includes('langchain') ||
+    text.includes('ai engineer') ||
+    text.includes('machine learning engineer')
+  )) {
+    return [
+      {
+        title: "AI Engineer",
+        company: "OpenAI",
+        matchScore: 92,
+        whyRecommended: "Your projects and experience with Python, PyTorch/TensorFlow, and large language model workflows align perfectly with OpenAI's AI engineering needs.",
+        matchedSkills: ["Python", "PyTorch", "TensorFlow", "Deep Learning", "LLMs"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Kubernetes", "Distributed Training", "CUDA"],
+        suggestedLearningPath: "1. Study distributed training techniques using PyTorch FSDP.\n2. Gain hands-on experience with CUDA programming and GPU optimization.",
+        applyLink: "https://openai.com/careers"
+      },
+      {
+        title: "Machine Learning Engineer",
+        company: "Google",
+        matchScore: 88,
+        whyRecommended: "Strong foundation in ML models, statistics, and neural network architectures matches Google's core ML research and engineering groups.",
+        matchedSkills: ["Python", "TensorFlow", "Scikit-Learn", "Machine Learning", "SQL"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["TFX", "Kubeflow", "Apache Beam"],
+        suggestedLearningPath: "1. Learn Google Cloud ML tools (Vertex AI).\n2. Build data pipelines with Apache Beam and Kubeflow.",
+        applyLink: "https://careers.google.com"
+      },
+      {
+        title: "Data Scientist",
+        company: "Spotify",
+        matchScore: 84,
+        whyRecommended: "Your ability to analyze complex datasets and write Python scripts aligns with Spotify's algorithmic personalization and recommendation engine teams.",
+        matchedSkills: ["Python", "SQL", "Pandas", "NumPy", "Statistics"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Scala", "Hadoop", "A/B Testing"],
+        suggestedLearningPath: "1. Learn Big Data processing with Apache Spark and Scala.\n2. Read 'Trustworthy Online Controlled Experiments' for A/B testing principles.",
+        applyLink: "https://lifeatspotify.com/jobs"
+      },
+      {
+        title: "Software Engineer - AI Applications",
+        company: "Meta",
+        matchScore: 85,
+        whyRecommended: "Your portfolio of AI projects and applications shows strong product engineering capability mixed with generative AI APIs.",
+        matchedSkills: ["Python", "FastAPI", "API Integration", "LangChain", "Vector Databases"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["React", "System Design at Scale", "GraphQL"],
+        suggestedLearningPath: "1. Master System Design patterns for high-throughput web APIs.\n2. Build a full-stack AI web app using React/Next.js.",
+        applyLink: "https://www.metacareers.com"
+      },
+      {
+        title: "Python Platform Developer",
+        company: "Stripe",
+        matchScore: 80,
+        whyRecommended: "Solid backend programming practices in Python and experience with REST APIs make you a great fit for building reliable payment APIs.",
+        matchedSkills: ["Python", "SQL", "REST APIs", "Git", "Docker"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Ruby", "AWS (EC2/RDS)", "Microservices Architecture"],
+        suggestedLearningPath: "1. Build microservices using Docker and AWS.\n2. Learn Ruby on Rails to understand Stripe's core codebase architecture.",
+        applyLink: "https://stripe.com/jobs"
+      }
+    ];
+  }
+
+  // 2. Data Scientist / Data Engineer / Data Analyst
+  if (text.includes('spark') || text.includes('pandas') || text.includes('etl') || text.includes('data engineer') || text.includes('data scientist') || text.includes('tableau')) {
+    return [
+      {
+        title: "Data Scientist",
+        company: "Spotify",
+        matchScore: 90,
+        whyRecommended: "Your expertise in data manipulation, statistics, and Python libraries is highly aligned with personalization and streaming analytics.",
+        matchedSkills: ["Python", "SQL", "Pandas", "NumPy", "Tableau"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Spark", "Airflow", "A/B Testing"],
+        suggestedLearningPath: "1. Implement ETL workflows with Apache Airflow.\n2. Study design and analysis of large-scale A/B testing experiments.",
+        applyLink: "https://lifeatspotify.com/jobs"
+      },
+      {
+        title: "Data Engineer",
+        company: "Netflix",
+        matchScore: 86,
+        whyRecommended: "Your skills in writing optimized queries and managing data pipelines align with Netflix's real-time analytics infra requirements.",
+        matchedSkills: ["SQL", "ETL", "Spark", "Python", "Snowflake"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Scala", "Kafka", "Data Mesh"],
+        suggestedLearningPath: "1. Learn Apache Kafka for streaming data injection.\n2. Study distributed database architectures and the Data Mesh paradigm.",
+        applyLink: "https://jobs.netflix.com/"
+      },
+      {
+        title: "Analytics Engineer",
+        company: "Vercel",
+        matchScore: 82,
+        whyRecommended: "Your bridge between data and front-facing dashboard development matches Vercel's product analytics teams.",
+        matchedSkills: ["SQL", "dbt", "Snowflake", "Git", "Python"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["React", "TypeScript", "Next.js"],
+        suggestedLearningPath: "1. Master React and Next.js basics to embed analytics widgets directly.\n2. Learn modern data modeling techniques with dbt.",
+        applyLink: "https://vercel.com/careers"
+      },
+      {
+        title: "Business Intelligence Analyst",
+        company: "Stripe",
+        matchScore: 80,
+        whyRecommended: "Your proficiency in data visualization and statistical reporting matches Stripe's growth and merchant intelligence teams.",
+        matchedSkills: ["SQL", "Tableau", "PowerBI", "Excel", "Data Analysis"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Python (Pandas)", "R", "Predictive Analytics"],
+        suggestedLearningPath: "1. Learn Python for advanced statistical analysis and predictive modeling.\n2. Read merchant metrics definitions and SaaS KPIs.",
+        applyLink: "https://stripe.com/jobs"
+      },
+      {
+        title: "Software Engineer - Data Platform",
+        company: "Google",
+        matchScore: 81,
+        whyRecommended: "Excellent programming skills combined with knowledge of databases and SQL querying patterns fits Google's internal big data systems.",
+        matchedSkills: ["SQL", "Python", "Git", "Databases", "Linux"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["C++", "MapReduce", "NoSQL"],
+        suggestedLearningPath: "1. Study C++ for high-performance systems.\n2. Build a project using distributed key-value databases like Bigtable.",
+        applyLink: "https://careers.google.com"
+      }
+    ];
+  }
+
+  // 3. Frontend & Backend Indicators Fallback
+  const hasBackend = text.includes('node') || text.includes('express') || text.includes('supabase') || text.includes('prisma') || text.includes('postgres') || text.includes('mongodb') || text.includes('sql') || text.includes('graphql') || text.includes('api ') || text.includes('backend');
+  const hasFrontend = text.includes('next.js') || text.includes('react') || text.includes('tailwind') || text.includes('html') || text.includes('css') || text.includes('javascript') || text.includes('frontend') || text.includes('sass');
+
+  if (hasFrontend && hasBackend) {
+    return [
+      {
+        title: "Full Stack Developer",
+        company: "Stripe",
+        matchScore: 91,
+        whyRecommended: "Your Next.js, TypeScript, and Node.js capabilities, alongside databases (PostgreSQL/Prisma), are highly applicable for Stripe's merchant portal and checkout apps.",
+        matchedSkills: ["Next.js", "React", "TypeScript", "Node.js", "Express", "PostgreSQL", "Prisma", "Supabase"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Docker", "Redis", "Microservices"],
+        suggestedLearningPath: "1. Learn Docker containerization for full-stack deployments.\n2. Study Redis caching patterns and microservice communications.",
+        applyLink: "https://stripe.com/jobs"
+      },
+      {
+        title: "Software Engineer",
+        company: "Netflix",
+        matchScore: 87,
+        whyRecommended: "Strong programming fundamentals in TypeScript/JavaScript, database systems, and framework expertise match Netflix's UI/API integration requirements.",
+        matchedSkills: ["TypeScript", "React", "Node.js", "Express", "PostgreSQL", "Git"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Java", "AWS (EC2/S3)", "System Design at Scale"],
+        suggestedLearningPath: "1. Gain experience with AWS infrastructure (EC2, ECS, RDS).\n2. Study system design concepts: load balancing, partitioning, and replication.",
+        applyLink: "https://jobs.netflix.com/"
+      },
+      {
+        title: "Product Engineer",
+        company: "Vercel",
+        matchScore: 89,
+        whyRecommended: "Your expertise in Next.js, TypeScript, React, and beautiful modern CSS/Tailwind shows you are perfect for driving high-quality product experiences at Vercel.",
+        matchedSkills: ["Next.js", "React", "TypeScript", "Tailwind CSS", "Supabase", "Git"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Edge Middleware", "OpenTelemetry", "Vercel SDKs"],
+        suggestedLearningPath: "1. Explore Next.js App Router edge runtimes and server actions.\n2. Learn monitoring and telemetry setup for Next.js applications.",
+        applyLink: "https://vercel.com/careers"
+      },
+      {
+        title: "AI Web Developer",
+        company: "OpenAI",
+        matchScore: 85,
+        whyRecommended: "Your experience building SaaS platforms combined with Supabase and modern web technologies is an excellent fit for building OpenAI's developer dashboard.",
+        matchedSkills: ["TypeScript", "React", "Next.js", "Prisma", "Supabase", "Authentication"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Python (FastAPI)", "Vector Databases", "Prompt Engineering"],
+        suggestedLearningPath: "1. Build a web application that integrates OpenAI API with Vector DB (Pinecone).\n2. Learn FastAPI for building python-based AI web APIs.",
+        applyLink: "https://openai.com/careers"
+      },
+      {
+        title: "Application Developer",
+        company: "GitHub",
+        matchScore: 82,
+        whyRecommended: "Solid web development practices, Git version control, and collaborative projects align with GitHub's developer productivity tools.",
+        matchedSkills: ["React", "TypeScript", "Node.js", "Express", "Git", "Jest"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Ruby on Rails", "Docker", "CI/CD Actions"],
+        suggestedLearningPath: "1. Write complex custom GitHub Actions CI/CD workflows.\n2. Learn Ruby on Rails fundamentals for GitHub platform extensions.",
+        applyLink: "https://github.com/about/careers"
+      }
+    ];
+  }
+
+  if (hasFrontend) {
+    return [
+      {
+        title: "Frontend Engineer",
+        company: "Vercel",
+        matchScore: 93,
+        whyRecommended: "Your extensive experience building responsive UI layouts with React and optimizing frontend web vitals matches Vercel's product and rendering teams.",
+        matchedSkills: ["React", "TypeScript", "Tailwind CSS", "HTML5", "CSS3", "JavaScript", "Next.js"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Edge Middleware", "Next.js App Router Server Actions", "Cypress"],
+        suggestedLearningPath: "1. Build a site using Next.js App Router server actions.\n2. Set up end-to-end frontend integration tests with Cypress.",
+        applyLink: "https://vercel.com/careers"
+      },
+      {
+        title: "Frontend Developer",
+        company: "Stripe",
+        matchScore: 88,
+        whyRecommended: "Strong web standards compliance, design fidelity implementation using CSS/Tailwind, and React application development matches Stripe's dashboard and billing teams.",
+        matchedSkills: ["React", "TypeScript", "Tailwind CSS", "Git", "Jest"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Framer Motion", "GraphQL", "E2E Testing"],
+        suggestedLearningPath: "1. Study smooth web transitions and micro-animations with Framer Motion.\n2. Learn to fetch and manage frontend state with GraphQL and Apollo.",
+        applyLink: "https://stripe.com/jobs"
+      },
+      {
+        title: "UI Engineer",
+        company: "Netflix",
+        matchScore: 85,
+        whyRecommended: "Your focus on pixel-perfect designs, performance optimizations, and component design alignment matches Netflix's core player UI engineering.",
+        matchedSkills: ["React", "JavaScript", "HTML", "CSS", "SASS", "Git"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["TypeScript", "Redux Toolkit", "Web Performance Metrics"],
+        suggestedLearningPath: "1. Master TypeScript static typing for React.\n2. Learn modern global state management with Redux Toolkit or Zustand.",
+        applyLink: "https://jobs.netflix.com/"
+      },
+      {
+        title: "Web Developer",
+        company: "Spotify",
+        matchScore: 84,
+        whyRecommended: "Familiarity with web components, responsive frameworks, and writing clean test suites fits Spotify's web player product engineering teams.",
+        matchedSkills: ["React", "JavaScript", "CSS", "Tailwind", "Jest"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["TypeScript", "Next.js", "Web Audio API"],
+        suggestedLearningPath: "1. Study Next.js SSR configurations and layout definitions.\n2. Play with the browser's native Web Audio API for custom sound wave visualization.",
+        applyLink: "https://lifeatspotify.com/jobs"
+      },
+      {
+        title: "Application Developer - Frontend",
+        company: "GitHub",
+        matchScore: 81,
+        whyRecommended: "Your expertise in modern frontend tools (Vite, Webpack), Git workflows, and unit testing using React Testing Library fits GitHub's UI development teams.",
+        matchedSkills: ["React", "Tailwind", "Jest", "Git", "Webpack", "Vite"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["TypeScript", "Accessibility (A11y)", "Tailwind config customization"],
+        suggestedLearningPath: "1. Learn web accessibility (a11y) standards, screen readers, and aria attributes.\n2. Migrate a React project from JS to TypeScript.",
+        applyLink: "https://github.com/about/careers"
+      }
+    ];
+  }
+
+  if (hasBackend) {
+    return [
+      {
+        title: "Backend Engineer",
+        company: "Stripe",
+        matchScore: 92,
+        whyRecommended: "Your strong experience building Node.js APIs, designing relational/non-relational schemas, and setting up Redis/Docker environment maps fits Stripe's payments infrastructure.",
+        matchedSkills: ["Node.js", "Express", "PostgreSQL", "MongoDB", "Redis", "Docker", "REST APIs", "Go"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Ruby", "AWS infrastructure", "Kafka"],
+        suggestedLearningPath: "1. Build and configure AWS microservices.\n2. Study message brokers and event ingestion with Kafka.",
+        applyLink: "https://stripe.com/jobs"
+      },
+      {
+        title: "Software Engineer - Backend",
+        company: "Netflix",
+        matchScore: 86,
+        whyRecommended: "Familiarity with Go/Node.js backend architectures, SQL database optimizations, and Git version control aligns with Netflix's core platform and streaming backend teams.",
+        matchedSkills: ["Go", "Node.js", "Express", "PostgreSQL", "SQL", "Git", "Docker"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Java", "Spring Boot", "AWS (EC2/S3)"],
+        suggestedLearningPath: "1. Learn Java and Spring Boot framework for enterprise-scale backends.\n2. Study AWS VPC network layouts and cloud server hosting.",
+        applyLink: "https://jobs.netflix.com/"
+      },
+      {
+        title: "API Platform Developer",
+        company: "OpenAI",
+        matchScore: 85,
+        whyRecommended: "Your skills in writing optimized SQL queries, API endpoints, and building python/node scripts matches OpenAI's developer portal API engineering.",
+        matchedSkills: ["Node.js", "Express", "Python", "SQL", "PostgreSQL", "Docker", "REST APIs"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["FastAPI", "Vector Databases", "Kubernetes"],
+        suggestedLearningPath: "1. Gain experience with FastAPI for Python web development.\n2. Implement search matching using vector databases (Pinecone, Chroma).",
+        applyLink: "https://openai.com/careers"
+      },
+      {
+        title: "Backend Developer",
+        company: "Google",
+        matchScore: 82,
+        whyRecommended: "Strong backend programming practices, SQL database design, and cloud server hosting fits Google's internal productivity web apps.",
+        matchedSkills: ["Node.js", "Express", "SQL", "PostgreSQL", "Go", "Git"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["C++", "Java", "Kubernetes"],
+        suggestedLearningPath: "1. Learn C++ syntax and memory management pointers.\n2. Study container orchestration tools like Kubernetes.",
+        applyLink: "https://careers.google.com"
+      },
+      {
+        title: "Infrastructure Engineer",
+        company: "GitHub",
+        matchScore: 80,
+        whyRecommended: "Your knowledge of Docker containerization, CI/CD automated test pipelines, and Linux environment administration matches GitHub's platform operations.",
+        matchedSkills: ["Docker", "CI/CD", "Linux", "Git", "Go"].filter(s => text.includes(s.toLowerCase())),
+        missingSkills: ["Terraform", "Kubernetes", "Shell Scripting"],
+        suggestedLearningPath: "1. Master infrastructure as code with Terraform.\n2. Automate systems tasks using bash/shell scripting.",
+        applyLink: "https://github.com/about/careers"
+      }
+    ];
+  }
+
+  // 4. Default Software Engineer fallback
+  return [
+    {
+      title: "Software Engineer",
+      company: "Google",
+      matchScore: 80,
+      whyRecommended: "Your core software development skills, education, and Git version control align with Google's generalist engineering requirements.",
+      matchedSkills: ["JavaScript", "TypeScript", "SQL", "Git", "HTML/CSS"].filter(s => text.includes(s.toLowerCase())),
+      missingSkills: ["C++", "Java", "Docker"],
+      suggestedLearningPath: "1. Study data structures and algorithms in C++ or Java.\n2. Containerize web applications using Docker.",
+      applyLink: "https://careers.google.com"
+    },
+    {
+      title: "Application Developer",
+      company: "GitHub",
+      matchScore: 78,
+      whyRecommended: "Familiarity with building web interfaces and core Git commands is highly suitable for developer productivity tooling.",
+      matchedSkills: ["JavaScript", "React", "CSS", "Git"].filter(s => text.includes(s.toLowerCase())),
+      missingSkills: ["TypeScript", "Docker", "CI/CD"],
+      suggestedLearningPath: "1. Learn TypeScript for type-safe frontend development.\n2. Set up a simple automated CI/CD pipeline using GitHub Actions.",
+      applyLink: "https://github.com/about/careers"
+    },
+    {
+      title: "Backend Engineer",
+      company: "Stripe",
+      matchScore: 75,
+      whyRecommended: "Your database knowledge and backend API development interest matches payment orchestration API teams.",
+      matchedSkills: ["Node.js", "Express", "SQL", "PostgreSQL"].filter(s => text.includes(s.toLowerCase())),
+      missingSkills: ["Ruby", "Docker", "AWS"],
+      suggestedLearningPath: "1. Run a local PostgreSQL database in Docker.\n2. Deploy an Express server to AWS EC2 or Elastic Beanstalk.",
+      applyLink: "https://stripe.com/jobs"
+    },
+    {
+      title: "Frontend Engineer",
+      company: "Vercel",
+      matchScore: 82,
+      whyRecommended: "Your strong React and CSS skills are highly applicable for building beautiful, responsive interfaces.",
+      matchedSkills: ["React", "HTML", "CSS", "JavaScript"].filter(s => text.includes(s.toLowerCase())),
+      missingSkills: ["Next.js", "TypeScript", "Tailwind CSS"],
+      suggestedLearningPath: "1. Build a project using Next.js App Router.\n2. Migrate your React code to TypeScript.",
+      applyLink: "https://vercel.com/careers"
+    },
+    {
+      title: "DevOps Engineer",
+      company: "Netflix",
+      matchScore: 74,
+      whyRecommended: "Your basic scripting and containerization skills align with automated deployments and infrastructure tooling.",
+      matchedSkills: ["Linux", "Git", "Docker"].filter(s => text.includes(s.toLowerCase())),
+      missingSkills: ["Kubernetes", "Terraform", "AWS"],
+      suggestedLearningPath: "1. Study infrastructure as code with Terraform.\n2. Learn Kubernetes cluster management and Helm chart deployment.",
+      applyLink: "https://jobs.netflix.com/"
+    }
+  ];
+}
+
+// Match a specific Job Description
 router.post('/match', async (req, res): Promise<any> => {
   try {
     const { resumeId, jobDescription } = req.body;
 
     if (!resumeId || !jobDescription) {
-      return res.status(400).json({ error: 'resumeId and jobDescription are required' });
+      return res.status(400).json({ success: false, error: 'resumeId and jobDescription are required' });
     }
 
     const { data: resume, error: fetchError } = await supabase
@@ -88,27 +374,38 @@ router.post('/match', async (req, res): Promise<any> => {
       .single();
 
     if (fetchError || !resume) {
-      return res.status(404).json({ error: 'Resume not found' });
+      return res.status(404).json({ success: false, error: 'Resume not found' });
     }
 
-    const prompt = `Act as a senior technical recruiter.
-Compare the Resume with the Job Description.
+    const prompt = `Act as a senior technical recruiter for top tech companies.
+Compare the candidate's Resume with the Job Description based strictly on evidence in the resume. Do not make generic assumptions.
 
-Return EXCLUSIVELY a JSON object:
+Calculate the Match Score (0-100) using this weighted rubric:
+1. Technical Skills (Languages, Frameworks, Libraries): 30%
+2. Complexity of Projects (SaaS, AI, Scalability): 20%
+3. Industry Experience & Internships: 20%
+4. Technology Stack Alignment: 15%
+5. Education & Credentials: 10%
+6. Overall Career Trajectory: 5%
+
+Return EXCLUSIVELY a JSON object with the following structure (no markdown, no extra commentary):
 {
   "matchScore": number,
   "feedback": {
-    "summary": "string",
-    "matchingSkills": ["string"],
-    "missingSkills": ["string"],
-    "strengthsForRole": ["string"],
-    "weaknessesForRole": ["string"],
-    "improvementSuggestions": ["string"]
+    "summary": "A professional summary of the candidate's alignment, citing explicit evidence (projects, skills, trajectory) from the resume.",
+    "matchingSkills": ["string", "string"],
+    "missingSkills": ["string", "string"],
+    "strengthsForRole": ["string", "string"],
+    "weaknessesForRole": ["string", "string"],
+    "improvementSuggestions": ["string", "string"]
   }
 }
 
-Job Description: ${jobDescription.substring(0, 2000)}
-Resume: ${resume.text.substring(0, 4000)}`;
+Job Description:
+${jobDescription.substring(0, 3000)}
+
+Resume Text:
+${resume.text.substring(0, 8000)}`;
 
     const result = await textModel.generateContent(prompt);
     const responseText = result.response.text();
@@ -128,21 +425,22 @@ Resume: ${resume.text.substring(0, 4000)}`;
 
     if (createError) throw createError;
 
-    res.json(jobMatch);
+    // Properly envelope response
+    res.json({ success: true, data: jobMatch });
   } catch (error) {
     console.error('Job Match Error:', error);
-    res.status(500).json({ error: 'Failed to match job', details: error instanceof Error ? error.message : 'Unknown error' });
+    res.status(500).json({ success: false, error: 'Failed to match job', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
-// Generate Suggested Jobs based on Resume using Embeddings and Vector Search
+// Generate Suggested Jobs based on Resume using dynamic Gemini Recruiter Analysis
 router.get('/suggested/:resumeId', async (req, res): Promise<any> => {
   try {
     const { resumeId } = req.params;
 
     // 0. Check cache
     if (suggestionsCache.has(resumeId)) {
-      return res.json(suggestionsCache.get(resumeId));
+      return res.json({ success: true, data: suggestionsCache.get(resumeId) });
     }
 
     const { data: resume, error: fetchError } = await supabase
@@ -151,72 +449,72 @@ router.get('/suggested/:resumeId', async (req, res): Promise<any> => {
       .eq('id', resumeId)
       .single();
 
+    console.log('[DEBUG] jobs.ts suggested fetch:', { resumeId, hasResume: !!resume, fetchError });
+
     if (fetchError || !resume) {
-      return res.status(404).json({ error: 'Resume not found' });
+      return res.status(404).json({ success: false, error: 'Resume not found' });
     }
 
-    // 1. Generate Job Embeddings (cache them to avoid repeated calls)
-    if (!cachedJobEmbeddings) {
-      cachedJobEmbeddings = [];
-      for (const job of MOCK_JOBS) {
-        const textToEmbed = `Title: ${job.title}\nDescription: ${job.description}`;
-        const result = await embeddingModel.embedContent(textToEmbed);
-        cachedJobEmbeddings.push({ id: job.id, embedding: result.embedding.values });
-      }
-    }
+    const prompt = `Act as a senior technical recruiter for top tech companies (Vercel, Stripe, Netflix, Spotify, Google, OpenAI, Meta, Apple).
+Analyze the candidate's Resume Text below and identify their skills, experience level, education, projects (SaaS/AI/etc.), technology stack, and career trajectory.
 
-    // 2. Generate Resume Embedding
-    const resumeEmbeddingResult = await embeddingModel.embedContent(resume.text.substring(0, 4000));
-    const resumeVector = resumeEmbeddingResult.embedding.values;
+Based on this evidence, recommend the TOP 5 most suitable job roles for this candidate. Do not recommend roles based on only one keyword. Ensure the recommended roles are diverse, personalized, and accurately reflect their trajectory (e.g., if they have Next.js + Node.js + Postgres + SaaS projects, prioritize Full Stack Developer, Software Engineer, Product Engineer, Web Developer, Application Developer instead of only Frontend Developer; if they have Python + PyTorch/TensorFlow + ML projects, prioritize ML Engineer, AI Engineer, Data Scientist).
 
-    // 3. Compute Cosine Similarity (Vector Search)
-    const jobScores = cachedJobEmbeddings.map(cachedJob => {
-      const similarity = cosineSimilarity(resumeVector, cachedJob.embedding);
-      // Scale cosine similarity (-1 to 1) to a realistic 50-98% match score
-      const matchScore = Math.min(Math.max(Math.round((similarity + 1) / 2 * 100), 50), 98);
-      return { id: cachedJob.id, similarity, matchScore };
-    });
+For each recommended role, calculate a Match Score (0-100) using this weighted rubric:
+1. Technical Skills (Languages, Frameworks, Libraries): 30%
+2. Complexity of Projects (SaaS, AI, Scalability): 20%
+3. Industry Experience & Internships: 20%
+4. Technology Stack Alignment: 15%
+5. Education & Credentials: 10%
+6. Overall Career Trajectory: 5%
 
-    // 4. Sort by highest similarity
-    jobScores.sort((a, b) => b.similarity - a.similarity);
-    const topJobs = jobScores.slice(0, 3); // Get top 3 matches
+Return EXCLUSIVELY a JSON array containing exactly 5 objects. Do not include any markdown formatting, thoughts, or HTML. The JSON must follow this exact schema:
 
-    // 5. Semantic Missing Skills Extraction (Concurrent)
-    const suggestedJobs = await Promise.all(topJobs.map(async (jobScore) => {
-      const jobData = MOCK_JOBS.find(j => j.id === jobScore.id)!;
+[
+  {
+    "title": "string (e.g. Full Stack Developer, ML Engineer, Product Engineer)",
+    "company": "string (e.g. Stripe, OpenAI, Vercel, Netflix, Google)",
+    "matchScore": number (calculated using the weighted rubric),
+    "whyRecommended": "string (evidence-based explanation referencing their resume projects/skills/experience/trajectory)",
+    "matchedSkills": ["string", "string"],
+    "missingSkills": ["string", "string"],
+    "suggestedLearningPath": "string (actionable checklist steps to acquire the missing skills)",
+    "applyLink": "string (placeholder URL like https://company.com/careers or similar)"
+  }
+]
+
+Resume Text:
+${resume.text.substring(0, 8000)}`;
+
+    let suggestedJobs;
+    try {
+      const result = await textModel.generateContent(prompt);
+      const responseText = result.response.text();
+      const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      suggestedJobs = JSON.parse(cleanedJson);
       
-      const missingSkillsPrompt = `Act as an ATS. Compare this resume with this job description.
-Identify exactly 2-4 key technical skills or requirements that are mentioned in the job description but are MISSING from the resume.
-Return EXCLUSIVELY a JSON array of strings (e.g. ["Docker", "GraphQL", "AWS"]). If none are missing, return ["None"].
-
-Job Description: ${jobData.description}
-Resume Text: ${resume.text.substring(0, 3000)}`;
-
-      let missingSkills = ["Experience gap"]; // fallback
-      try {
-        const textResult = await textModel.generateContent(missingSkillsPrompt);
-        const cleanedJson = textResult.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
-        missingSkills = JSON.parse(cleanedJson);
-        if (!Array.isArray(missingSkills)) missingSkills = ["Experience gap"];
-      } catch (err) {
-        console.error("Failed to extract missing skills for job:", jobData.title);
+      if (!Array.isArray(suggestedJobs) || suggestedJobs.length === 0) {
+        throw new Error("Invalid output format from Gemini");
       }
-
-      return {
-        title: jobData.title,
-        company: jobData.company,
-        matchScore: jobScore.matchScore,
-        missingSkills: missingSkills.slice(0, 3), // Ensure max 3 skills
-        applyLink: jobData.applyLink
-      };
-    }));
+    } catch (apiError) {
+      console.warn("Gemini Suggested Jobs API failed, falling back to local analysis generator:", apiError);
+      suggestedJobs = getFallbackSuggestions(resume.text);
+    }
 
     suggestionsCache.set(resumeId, suggestedJobs);
-    res.json(suggestedJobs);
+    
+    // Properly envelope response
+    res.json({ success: true, data: suggestedJobs });
   } catch (error) {
-    console.error('Job Suggestions Embedding Error:', error);
-    // 6. Fallback if AI or Embeddings fail (ensures no blank states)
-    res.json(FALLBACK_JOBS);
+    console.error('Job Suggestions Error:', error);
+    // Dynamic local fallback if total failure
+    try {
+      const { data: resume } = await supabase.from('resumes').select('text').eq('id', req.params.resumeId).single();
+      const fallback = getFallbackSuggestions(resume?.text || "");
+      return res.json({ success: true, data: fallback });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: 'Failed to generate suggestions' });
+    }
   }
 });
 
