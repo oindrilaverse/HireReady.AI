@@ -1,81 +1,74 @@
-# HireReady.AI — AI-Powered ATS Resume Analyzer & Job Matcher
+# HireReady.AI | AI-Powered Resume Analyzer & ATS Optimization SaaS
 
-[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-success?style=flat-square&logo=vercel&logoColor=white)](https://hire-ready-ai-v2.vercel.app/)
-[![Next.js Version](https://img.shields.io/badge/Next.js-v16.2-blue?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-v5.0-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+HireReady.AI is a high-performance, production-ready Software-as-a-Service (SaaS) application designed to empower candidates to optimize their resumes for Applicant Tracking Systems (ATS) and land interviews at top tech companies. By combining Google's Gemini AI with advanced vector similarity searches, HireReady.AI breaks down resume alignment, highlights skill gaps, and matches resumes against target job descriptions in real-time.
 
-HireReady.AI is a high-performance Software-as-a-Service (SaaS) application designed to optimize candidate resumes for Applicant Tracking Systems (ATS) and bridge the gap between job seekers and top-tier tech companies. Leveraging advanced Large Language Models (LLMs) and vector embedding search, the platform evaluates resumes against recruiter-grade ATS algorithms, identifies key skill gaps, and dynamically highlights job description compatibility in under 60 seconds.
+🔗 **Live Platform URL**: [https://hire-ready-ai-v2.vercel.app/](https://hire-ready-ai-v2.vercel.app/)
 
 ---
 
-## 🔗 Live Deployments
-
-* **Frontend Web Application (Vercel)**: [https://hire-ready-ai-v2.vercel.app/](https://hire-ready-ai-v2.vercel.app/)
-* **Production API Server**: [https://api.hireready.ai/api/health](https://api.hireready.ai/api/health) (Placeholder/Fallback active)
-
----
-
-## 🚀 What It Does
-
-In the modern job market, over 75% of resumes are filtered out by automated Applicant Tracking Systems before reaching a human recruiter. HireReady.AI acts as a personal career auditor by:
-1. **Parsing Resumes**: Instantly reading PDFs, DOCX, and TXT files, extracting raw textual contents via native parsers and fallback generative AI vision extraction.
-2. **AI scoring**: Evaluating technical competencies, keyword density, formatting consistency, experience impact, and verb strength to generate an overall ATS match rating (0-100).
-3. **Keyword Gap Detection**: Scanning top tech job descriptions to pinpoint missing industry keywords, frameworks, and tools.
-4. **Semantic Job Matching**: Using vector embeddings to run real-time cosine similarity search, matching the user's resume against a live database of mock positions (Vercel, Stripe, Netflix, Spotify) to recommend jobs.
+## 🚀 What it does
+HireReady.AI acts as a simulated senior recruiter and ATS evaluator. Users upload their resumes in PDF, DOCX, or TXT format. The application extracts the text content (with bulletproof OCR fallbacks), matches it against technical keyword bases, and scores the resume. Users get:
+*   An **ATS Compatibility Score (0-100)** calculated using weighted metrics (Keyword match, Skills relevance, Experience quality, Formatting, and Action verbs).
+*   A **Recruiter Summary** detailing the resume's strengths and weaknesses.
+*   An **Actionable Skill Gap Analysis** highlighting exact keywords and technologies missing from the resume.
+*   An **AI Job Matcher** that compares their resume to any pasted job description, calculating compatibility and giving step-by-step optimization recommendations.
 
 ---
 
-## 🛠️ Technical Architecture & Stack
+## 🛠️ Tech Stack
 
-### Frontend Architecture (Client)
-* **Framework**: Next.js 16.2 (App Router with Turbopack packaging)
-* **Styling**: Tailwind CSS 4.0, featuring glassmorphism micro-interaction UI, CSS-hardware accelerated keyframe glow animations, and Outfit & Space Grotesk Google typography.
-* **State Management**: Zustand (persisted state middleware for local cache hydration).
-* **Animations**: Framer Motion (buttery-smooth, hardware-accelerated layouts).
-* **Performance**: Lightweight IntersectionObserver on cinematic landing background video to suspend rendering when off-screen; Page visibility listener to halt requestAnimationFrame canvas drawing loop when tab is hidden or minimized.
+### Frontend Architecture
+*   **Framework**: Next.js (App Router, Turbopack, React 19)
+*   **Styling**: Tailwind CSS (custom HSL color utility layer)
+*   **State Management**: Zustand (persisted state middleware)
+*   **Animation**: Framer Motion (hardware-accelerated page transitions & micro-interactions)
+*   **Icons**: Lucide React
+*   **Charts**: Recharts (fully customized SVG visualizers)
 
-### Backend Infrastructure (API Server)
-* **Runtime**: Node.js & Express (TypeScript compilation watch loop).
-* **AI Engine**: Google Gemini 2.0 Flash (`gemini-2.0-flash` for high-speed textual scanning, `text-embedding-004` for semantic vector calculations).
-* **Database & Auth**: Supabase (PostgreSQL engine for data schemas, Row-Level Security, and Supabase GoTrue Auth JWT).
-* **File Upload**: Multer (in-memory buffer parsing).
+### Backend Services
+*   **Runtime**: Node.js & Express (TypeScript, TSX watch engine)
+*   **File Parser**: Multer & PDF-Parse (with dual-engine semantic fallback)
+*   **AI Engine**: Google Gemini API (`gemini-2.0-flash` for high-speed analysis, `text-embedding-004` for vector generation)
+
+### Database & Auth
+*   **Database/ORM**: Supabase (PostgreSQL, custom PL/pgSQL database triggers, and RPC functions)
+*   **Authentication**: Supabase Auth (synchronous profile sync and session hooks)
 
 ---
 
 ## ✨ Features
 
-* **SaaS Tier-Gating & Usage Limits**: Secure middleware tracking user scan quotas. Free tier is gated to a maximum of 3 monthly scans with automated, non-intrusive database increment triggers.
-* **Advanced Resume Parsing & Fallbacks**: Utilizes native binary buffer parser. In case of image-only or encrypted PDFs, the server auto-falls back to a Gemini multimodality parsing pipeline to extract text.
-* **Vector Semantic Search**: Instead of simple substring matching, the platform embeds the resume text and performs cosine similarity matching against target roles.
-* **Interactive Data Visualization**: Rendered historical score progressions over time utilizing a fully client-side responsive charting grid (Recharts).
-* **Netflix-Grade Performance Tuning**: Scroll lag minimized to 0ms. Hardware-accelerated fixed container transforms ensure mobile viewports glide seamlessly.
+*   **SaaS Dashboard**: A centralized hub showing resume score history, average scores, personal bests, and detailed matching analytics.
+*   **Tier-Gated Scan Limits**: Free tier users get 3 full scans, protected by server-side middleware (`checkScanLimit.ts`). Payment pathways lead to Pro tier with unlimited generations.
+*   **AI-Powered Job Matcher**: Direct vector embedding comparisons (Cosine Similarity) between resume and job description to show matching skills vs missing gaps.
+*   **Netflix-Like Performance**:
+    *   **IntersectionObserver**: Pauses the background landing page cinematic video player when scrolled out of viewport, freeing up GPU rendering cycles and rendering-pipeline resources.
+    *   **Page Visibility Listener**: Stops requestAnimationFrame loops on particle canvases ([BackgroundNet.tsx](src/components/layout/BackgroundNet.tsx)) when tabs are hidden or inactive, resulting in 0% CPU consumption in background.
+*   **Secure Multi-Format Parsers**: Advanced parsing of PDF, DOCX, and TXT files. Encrypted or flat-image PDFs automatically trigger a Gemini AI fallback parser to extract raw selectable text.
 
 ---
 
 ## 📸 Screenshots
 
-### 1. Landing Page (Cinematic Pink Energy Backdrop)
-*`[Screenshot Placeholder: Landing Page with Cinematic Video Background]`*
+### 1. Landing Page (Cinematic Video Background & Pink Energy Aesthetic)
+*`[Insert Landing Page Screenshot / Placeholder]`*
 
-### 2. Candidate Dashboard & Performance Analytics
-*`[Screenshot Placeholder: Dashboard with Score Progression Chart and Recent Scan History]`*
+### 2. Recruiter Analytics Dashboard
+*`[Insert Dashboard Screenshot / Placeholder]`*
 
-### 3. AI Scan Report & Actionable Recommendations
-*`[Screenshot Placeholder: ATS Score Target, Missing Keywords, and Structural Suggestions]`*
+### 3. Detailed ATS Analysis & Keyword Gap Report
+*`[Insert Analyzer Results Screenshot / Placeholder]`*
+
+### 4. Interactive Job Matcher Page
+*`[Insert Job Matcher Screenshot / Placeholder]`*
 
 ---
 
 ## 💻 Local Setup Instructions
 
-Follow these steps to run both the frontend and backend servers locally.
+Follow these steps to run the frontend and backend servers locally:
 
-### Prerequisites
-* [Node.js](https://nodejs.org/) v18.0 or higher
-* [NPM](https://www.npmjs.com/) v9.0 or higher
-* Git
-
-### 1. Clone the Repository
+### 1. Clone & Initialize the Workspace
 ```bash
 git clone https://github.com/oindrilaverse/HireReady.ai-V2.git
 cd HireReady.ai-V2
@@ -83,52 +76,38 @@ cd HireReady.ai-V2
 
 ### 2. Configure Environment Variables
 
-Create a `.env.local` file in the **root** folder:
+Create `.env.local` in the root directory (for Next.js frontend):
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_public_key
+NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-Create a `.env` file in the **`backend`** folder:
+Create `.env` inside the `backend/` directory (for Express API):
 ```env
 PORT=5000
-GEMINI_API_KEY=your_google_gemini_api_key
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_public_key
+GEMINI_API_KEY=your-google-gemini-api-key
+NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-### 3. Install Dependencies
-
-Install root dependencies:
-```bash
-npm install
-```
-
-Install backend dependencies:
+### 3. Install & Start Backend Services
 ```bash
 cd backend
 npm install
-cd ..
-```
-
-### 4. Run the Servers
-
-Start the backend API server (runs on port 5000):
-```bash
-cd backend
 npm run dev
 ```
+*The backend API server should now be running on [http://localhost:5000](http://localhost:5000).*
 
-In a new terminal window, start the frontend Next.js dev server (runs on port 3000):
+### 4. Install & Start Frontend Web Application
+Open a new terminal at the project root:
 ```bash
+npm install
 npm run dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
+*The Next.js Turbopack development server will spin up on [http://localhost:3000](http://localhost:3000).*
 
 ---
 
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+## 🔒 Security & Data Isolation
+All user uploads are fully isolated via row-level security (RLS) policies on Supabase. Text parsing buffers are executed in-memory and never persisted locally. Database connections use SSL encryption.
