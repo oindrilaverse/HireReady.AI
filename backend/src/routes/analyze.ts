@@ -13,7 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 const pdfParseModule = require('pdf-parse');
-const PDFParse = pdfParseModule.PDFParse;
 
 
 const router = Router();
@@ -65,8 +64,7 @@ router.post('/upload', checkScanLimit, (req, res, next) => {
     } else if (isPdf) {
       // PDF parsing
       try {
-        const parser = new PDFParse(new Uint8Array(file.buffer));
-        const parseResult = await parser.getText();
+        const parseResult = await pdfParseModule(file.buffer);
         text = parseResult.text || '';
         console.log(`[ANALYZER] PDF parsed successfully. Length: ${text.length}`);
       } catch (pdfError) {
