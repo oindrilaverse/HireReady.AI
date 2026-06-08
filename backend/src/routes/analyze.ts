@@ -149,10 +149,12 @@ router.post('/upload', checkScanLimit, (req, res, next) => {
         console.log(`[ANALYZER] Duplicate resume detected for user ${userId}. Returning existing report.`);
         return res.json({
           success: true,
-          isDuplicate: true,
-          resumeId: resumeDoc.id,
-          report: resumeDoc.analyses[0],
-          rawText: resumeDoc.text,
+          data: {
+            isDuplicate: true,
+            resumeId: resumeDoc.id,
+            report: resumeDoc.analyses[0],
+            rawText: resumeDoc.text,
+          }
         });
       }
     }
@@ -174,9 +176,11 @@ router.post('/upload', checkScanLimit, (req, res, next) => {
 
     res.json({
       success: true,
-      resumeId: resume.id,
-      rawText: text,
-      isDuplicate: false
+      data: {
+        resumeId: resume.id,
+        rawText: text,
+        isDuplicate: false
+      }
     });
 
   } catch (error) {
@@ -214,30 +218,20 @@ router.post('/process', async (req, res): Promise<any> => {
       });
     }
 
-    const prompt = `Act as a senior recruiter and ATS system for top tech companies.
-Analyze the resume and return:
-1. ATS Score (0-100) based on Keyword match (30%), Skills relevance (25%), Experience quality (20%), Formatting & readability (15%), Action verbs & impact (10%)
-2. Summary (2-3 lines, professional tone)
-3. Strengths (bullet points)
-4. Weaknesses (bullet points)
-5. Missing Keywords (important)
-6. Improvement Suggestions (clear, actionable)
-7. Formatting Issues (if any)
-
-Make the response professional, concise, realistic, not generic, and with no fluff language.
+    const prompt = `Act as a senior recruiter and ATS scanner. Analyze this resume text and return a JSON object.
 
 Resume Text:
-${resume.text.substring(0, 10000)}
+${resume.text.substring(0, 4000)}
 
-Return the response EXCLUSIVELY as a JSON object with this exact structure (no markdown, no extra text):
+Return EXCLUSIVELY a JSON object (no markdown, no other text):
 {
   "score": number,
-  "summary": "string",
-  "strengths": ["string", "string"],
-  "weaknesses": ["string", "string"],
-  "missingKeywords": ["string", "string"],
-  "suggestions": ["string", "string"],
-  "formattingIssues": ["string", "string"]
+  "summary": "2-3 sentence summary",
+  "strengths": ["strength 1", "strength 2"],
+  "weaknesses": ["weakness 1", "weakness 2"],
+  "missingKeywords": ["keyword 1", "keyword 2"],
+  "suggestions": ["suggestion 1", "suggestion 2"],
+  "formattingIssues": ["issue 1", "issue 2"]
 }`;
 
     // Call Gemini with timeout protection
@@ -334,7 +328,7 @@ Return the response EXCLUSIVELY as a JSON object with this exact structure (no m
 
     res.json({
       success: true,
-      report
+      data: report
     });
 
   } catch (error) {

@@ -357,7 +357,6 @@ function getFallbackSuggestions(resumeText: string): any[] {
     }
   ];
 }
-
 // Match a specific Job Description
 router.post('/match', async (req, res): Promise<any> => {
   try {
@@ -367,45 +366,65 @@ router.post('/match', async (req, res): Promise<any> => {
       return res.status(400).json({ success: false, error: 'resumeId and jobDescription are required' });
     }
 
-    const { data: resume, error: fetchError } = await supabase
-      .from('resumes')
-      .select('*')
-      .eq('id', resumeId)
-      .single();
+    const cleanedJd = jobDescription.trim();
 
-    if (fetchError || !resume) {
+    // 1. Check cache first
+    const { data: existingMatch } = await supabase
+      .from('job_matches')
+      .select('*')
+      .eq('resumeId', resumeId)
+      .eq('jobDescription', cleanedJd)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingMatch) {
+      console.log(`[JOBS] Cache hit for job match (resume: ${resumeId}).`);
+      return res.json({ success: true, data: existingMatch });
+    }
+
+    // 2. Fetch resume and latest analysis report in parallel
+    const [resumeRes, analysisRes] = await Promise.all([
+      supabase.from('resumes').select('*').eq('id', resumeId).single(),
+      supabase.from('analyses').select('*').eq('resumeId', resumeId).order('createdAt', { ascending: false }).limit(1).maybeSingle()
+    ]);
+
+    const resume = resumeRes.data;
+    if (resumeRes.error || !resume) {
       return res.status(404).json({ success: false, error: 'Resume not found' });
     }
 
-    const prompt = `Act as a senior technical recruiter for top tech companies.
-Compare the candidate's Resume with the Job Description based strictly on evidence in the resume. Do not make generic assumptions.
+    const analysis = analysisRes.data;
+    let strengths: string[] = [];
+    if (analysis) {
+      try {
+        strengths = typeof analysis.strengths === 'string' ? JSON.parse(analysis.strengths) : (analysis.strengths || []);
+      } catch (e) {}
+    }
 
-Calculate the Match Score (0-100) using this weighted rubric:
-1. Technical Skills (Languages, Frameworks, Libraries): 30%
-2. Complexity of Projects (SaaS, AI, Scalability): 20%
-3. Industry Experience & Internships: 20%
-4. Technology Stack Alignment: 15%
-5. Education & Credentials: 10%
-6. Overall Career Trajectory: 5%
+    // 3. Construct optimized, fast comparison prompt
+    const prompt = `Act as a senior recruiter. Compare the candidate profile with the Job Description.
 
-Return EXCLUSIVELY a JSON object with the following structure (no markdown, no extra commentary):
+Candidate Strengths/Skills:
+${strengths.join(', ') || 'General software development'}
+
+Resume Highlights:
+${resume.text.substring(0, 3000)}
+
+Job Description:
+${cleanedJd.substring(0, 2000)}
+
+Return EXCLUSIVELY a JSON object (no markdown, no extra text):
 {
   "matchScore": number,
   "feedback": {
-    "summary": "A professional summary of the candidate's alignment, citing explicit evidence (projects, skills, trajectory) from the resume.",
-    "matchingSkills": ["string", "string"],
-    "missingSkills": ["string", "string"],
-    "strengthsForRole": ["string", "string"],
-    "weaknessesForRole": ["string", "string"],
-    "improvementSuggestions": ["string", "string"]
+    "summary": "1-2 sentence comparison citing resume highlights.",
+    "matchingSkills": ["string"],
+    "missingSkills": ["string"],
+    "strengthsForRole": ["string"],
+    "weaknessesForRole": ["string"],
+    "improvementSuggestions": ["string"]
   }
-}
-
-Job Description:
-${jobDescription.substring(0, 3000)}
-
-Resume Text:
-${resume.text.substring(0, 8000)}`;
+}`;
 
     const result = await textModel.generateContent(prompt);
     const responseText = result.response.text();
@@ -416,7 +435,7 @@ ${resume.text.substring(0, 8000)}`;
       .from('job_matches')
       .insert([{
         resumeId: resume.id,
-        jobDescription,
+        jobDescription: cleanedJd,
         matchScore: parsedResult.matchScore,
         feedback: JSON.stringify(parsedResult.feedback),
       }])
@@ -425,14 +444,12 @@ ${resume.text.substring(0, 8000)}`;
 
     if (createError) throw createError;
 
-    // Properly envelope response
     res.json({ success: true, data: jobMatch });
   } catch (error) {
     console.error('Job Match Error:', error);
     res.status(500).json({ success: false, error: 'Failed to match job', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
-
 // Generate Suggested Jobs based on Resume using dynamic Gemini Recruiter Analysis
 router.get('/suggested/:resumeId', async (req, res): Promise<any> => {
   try {
