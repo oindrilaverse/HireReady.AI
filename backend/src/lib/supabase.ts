@@ -14,7 +14,47 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-const originalSupabase = createClient(supabaseUrl, supabaseAnonKey);
+let originalSupabase: any;
+
+if (supabaseUrl && supabaseAnonKey) {
+  originalSupabase = createClient(supabaseUrl, supabaseAnonKey);
+} else {
+  console.warn('\n======================================================================');
+  console.warn('[SUPABASE] WARNING: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!');
+  console.warn('[SUPABASE] Bypassed client creation to prevent startup crash.');
+  console.warn('[SUPABASE] Database queries will fallback to the local JSON database.');
+  console.warn('======================================================================\n');
+
+  originalSupabase = {
+    from(table: string) {
+      return {
+        select() { return this; },
+        insert() { return this; },
+        update() { return this; },
+        delete() { return this; },
+        upsert() { return this; },
+        eq() { return this; },
+        in() { return this; },
+        order() { return this; },
+        limit() { return this; },
+        async single() { return { data: null, error: { code: 'NO_SUPABASE_CONFIGURED', message: 'Supabase credentials are not set.' } }; },
+        async maybeSingle() { return { data: null, error: { code: 'NO_SUPABASE_CONFIGURED', message: 'Supabase credentials are not set.' } }; },
+        then(onfulfilled: any) {
+          if (onfulfilled) {
+            onfulfilled({ data: null, error: { code: 'NO_SUPABASE_CONFIGURED', message: 'Supabase credentials are not set.' } });
+          }
+          return Promise.resolve({ data: null, error: { code: 'NO_SUPABASE_CONFIGURED', message: 'Supabase credentials are not set.' } });
+        }
+      } as any;
+    },
+    auth: {
+      signUp: async () => ({ data: { user: null, session: null }, error: { message: 'Supabase credentials not configured' } }),
+      signInWithPassword: async () => ({ data: { user: null, session: null }, error: { message: 'Supabase credentials not configured' } }),
+      signOut: async () => ({ error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    }
+  } as any;
+}
 
 const dbFilePath = path.join(__dirname, '../../scratch/local_db.json');
 
