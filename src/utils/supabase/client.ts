@@ -127,7 +127,7 @@ export function createClient() {
             return handleSignUpFallback(params);
           }
           const timeoutPromise = new Promise((resolve) => 
-            setTimeout(() => resolve({ error: { message: 'Timeout' } }), 8000)
+            setTimeout(() => resolve({ error: { message: 'Timeout' } }), 3000)
           );
           try {
             const res = await Promise.race([target.signUp(params), timeoutPromise]) as any;
@@ -147,7 +147,7 @@ export function createClient() {
             return handleSignInFallback(params);
           }
           const timeoutPromise = new Promise((resolve) => 
-            setTimeout(() => resolve({ error: { message: 'Timeout' } }), 8000)
+            setTimeout(() => resolve({ error: { message: 'Timeout' } }), 3000)
           );
           try {
             const res = await Promise.race([target.signInWithPassword(params), timeoutPromise]) as any;

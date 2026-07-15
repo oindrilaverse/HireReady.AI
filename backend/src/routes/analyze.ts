@@ -359,36 +359,34 @@ router.post('/process', async (req, res): Promise<any> => {
       });
     }
 
-    const prompt = `Act as a senior recruiter and ATS system for top tech companies.
-Analyze the resume and return:
-1. ATS Score (0-100) based on Keyword match (30%), Skills relevance (25%), Experience quality (20%), Formatting & readability (15%), Action verbs & impact (10%)
-2. Summary (2-3 lines, professional tone)
-3. Strengths (bullet points)
-4. Weaknesses (bullet points)
-5. Missing Keywords (important)
-6. Improvement Suggestions (clear, actionable)
-7. Formatting Issues (if any)
-
-Make the response professional, concise, realistic, not generic, and with no fluff language.
+    const prompt = `Act as an expert tech ATS scanner. Analyze this resume and return:
+1. ATS Score (0-100) based on keywords, skills, experience, formatting, action verbs
+2. Professional summary (2 lines)
+3. Strengths, Weaknesses, Missing Keywords, Improvement Suggestions, Formatting Issues
 
 Resume Text:
-${resume.text.substring(0, 10000)}
+${resume.text.substring(0, 7000)}
 
-Return the response EXCLUSIVELY as a JSON object with this exact structure (no markdown, no extra text):
+Return EXCLUSIVELY a JSON object (no markdown formatting, no wrapper, just raw JSON):
 {
   "score": number,
   "summary": "string",
-  "strengths": ["string", "string"],
-  "weaknesses": ["string", "string"],
-  "missingKeywords": ["string", "string"],
-  "suggestions": ["string", "string"],
-  "formattingIssues": ["string", "string"]
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "missingKeywords": ["string"],
+  "suggestions": ["string"],
+  "formattingIssues": ["string"]
 }`;
 
-    console.log(`[ANALYZER] Calling Gemini API for resume ${resumeId}...`);
+    console.log(`[ANALYZER] Calling Gemini API (JSON Mode) for resume ${resumeId}...`);
     let parsedResult;
     try {
-      const analysisPromise = model.generateContent(prompt);
+      const analysisPromise = model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+        }
+      });
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('AI analysis timed out after 45 seconds')), 45000)
       );

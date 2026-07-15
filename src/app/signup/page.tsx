@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +20,12 @@ export default function SignupPage() {
   const [isAutoLoggedIn, setIsAutoLoggedIn] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  // Prefetch analyzer and login pages to make post-signup transitions instant
+  useEffect(() => {
+    router.prefetch('/analyzer');
+    router.prefetch('/login');
+  }, [router]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
